@@ -19,7 +19,7 @@ import {
 import { StationCard } from './components/StationCard';
 import { AudioPlayer } from './components/AudioPlayer';
 
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 100;
 const FAVORITES_STORAGE_KEY = 'radioweb_favorites_v1';
 
 type ActiveSection = 'catalog' | 'genres' | 'favorites' | 'dataset';
@@ -572,19 +572,23 @@ export default function App() {
                     </h1>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-400">
                       <span>
-                        Visualizzate{' '}
+                        Totale catalogo:{' '}
                         <strong className="font-mono text-white tabular-nums">
-                          {filteredStations.length.toLocaleString('it-IT')}
-                        </strong>{' '}
-                        di{' '}
-                        <span className="font-mono text-slate-300 tabular-nums">
                           {catalog.stations.length.toLocaleString('it-IT')}
-                        </span>{' '}
-                        stazioni
+                        </strong>{' '}
+                        stazioni uniche
                       </span>
                       <span aria-hidden="true">·</span>
                       <span>
-                        Sorgente: <code className="font-mono text-slate-300">{catalog.sourceName}</code>
+                        Filtrate:{' '}
+                        <strong className="font-mono text-amber-400 tabular-nums">
+                          {filteredStations.length.toLocaleString('it-IT')}
+                        </strong>{' '}
+                        (mostrate {visibleStations.length.toLocaleString('it-IT')})
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        File: <code className="font-mono text-slate-300">{catalog.sourceName}</code>
                       </span>
                     </div>
                   </div>

@@ -99,7 +99,7 @@ export async function clearSavedCsvFromBrowser(): Promise<void> {
 async function fetchCanonicalGenres(): Promise<string[]> {
   for (const path of GENRES_PATHS) {
     try {
-      const res = await fetch(path);
+      const res = await fetch(path, { cache: 'no-cache' });
       if (!res.ok) continue;
       const text = await res.text();
       if (text.trim().startsWith('<!doctype') || text.trim().startsWith('<html')) {
@@ -255,28 +255,21 @@ export function parseStationsCsvText(
 }
 
 /**
- * Loads `catalog_stations.csv` at runtime:
- * 1. First checks if the user previously uploaded and saved a CSV in IndexedDB.
- * 2. Otherwise fetches `/catalog_stations.csv` from the static bundle.
+ * Loads `catalog_stations.csv` at runtime, bypassing stale HTTP caches.
+ * If both a server `/catalog_stations.csv` and a browser-saved CSV exist,
+ * it automatically uses whichever catalog contains more stations (unless forced).
  */
-export async function loadInitialCatalog(forceBundle = false): Promise<CatalogData & { isCustomSaved?: boolean }> {
+export async function loadInitialCatalog(
+  forceBundle = false
+): Promise<CatalogData & { isCustomSaved?: boolean }> {
   const canonicalGenres = await fetchCanonicalGenres();
 
-  if (!forceBundle) {
-    const saved = await getSavedCsvFromBrowser();
-    if (saved && saved.csvText) {
-      return parseStationsCsvText(
-        saved.csvText,
-        `${saved.sourceName} (salvato nel browser)`,
-        canonicalGenres,
-        true
-      );
-    }
-  }
+  const saved = !forceBundle ? await getSavedCsvFromBrowser() : null;
 
   for (const path of CATALOG_PATHS) {
     try {
-      const response = await fetch(path);
+      const cacheBustUrl = `${path}?v=${Date.now()}`;
+      const response = await fetch(cacheBustUrl, { cache: 'no-store' });
       if (!response.ok) continue;
 
       const text = await response.text();
@@ -284,11 +277,31 @@ export async function loadInitialCatalog(forceBundle = false): Promise<CatalogDa
         continue;
       }
 
+      // If user has a larger custom file saved in IndexedDB (e.g. uploaded manually), use it;
+      // otherwise if the server file was updated with the full catalog, prefer the server file!
+      if (saved && saved.csvText && saved.csvText.length > text.length) {
+        return parseStationsCsvText(
+          saved.csvText,
+          `${saved.sourceName} (salvato nel browser)`,
+          canonicalGenres,
+          true
+        );
+      }
+
       const fileName = path.split('/').pop() || 'catalog_stations.csv';
       return parseStationsCsvText(text, fileName, canonicalGenres, false);
     } catch {
       // Try next path
     }
+  }
+
+  if (saved && saved.csvText) {
+    return parseStationsCsvText(
+      saved.csvText,
+      `${saved.sourceName} (salvato nel browser)`,
+      canonicalGenres,
+      true
+    );
   }
 
   throw new Error(
