@@ -498,16 +498,13 @@ export default function App() {
                 </div>
 
                 {/* Upload or Replace Instructions */}
-                <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                       <h2 className="text-base font-semibold text-white flex items-center gap-2">
                         <FileSpreadsheet className="w-4 h-4 text-amber-400" />
                         <span>File attivo: {catalog.sourceName}</span>
                       </h2>
-                      <p className="text-sm text-slate-400 mt-1">
-                        All&apos;avvio l&apos;app legge automaticamente <code className="font-mono text-slate-200">/catalog_stations.csv</code> dalla cartella <code className="font-mono text-slate-200">public/catalog_stations.csv</code>.
-                      </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2.5">
                       <button
@@ -536,24 +533,6 @@ export default function App() {
                         </button>
                       )}
                     </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-800/80 text-xs text-slate-300 space-y-2 leading-relaxed">
-                    <p className="font-semibold text-white">Regole applicate sui dati:</p>
-                    <ul className="list-disc list-inside space-y-1 text-slate-400">
-                      <li>
-                        <strong className="text-slate-200">Parsing RFC 4180:</strong> lettura con <code className="font-mono">PapaParse</code> per gestire correttamente campi testuali tra virgolette contenenti virgole.
-                      </li>
-                      <li>
-                        <strong className="text-slate-200">Deduplicazione per <code className="font-mono">id</code>:</strong> una sola card per <code className="font-mono">id</code>, mantenendo il primo stream con <code className="font-mono">status=VALID</code> in ordine di apparizione.
-                      </li>
-                      <li>
-                        <strong className="text-slate-200">Risoluzione Logo:</strong> priorità a <code className="font-mono">logo175</code>, con fallback automatico a <code className="font-mono">logo100</code>, poi <code className="font-mono">logo300</code> e infine placeholder grafico.
-                      </li>
-                      <li>
-                        <strong className="text-slate-200">Riproduzione Stream:</strong> supporto nativo per MP3/AAC/OGG e supporto <code className="font-mono">hls.js</code> per i flussi <code className="font-mono">.m3u8</code>.
-                      </li>
-                    </ul>
                   </div>
                 </div>
               </section>
