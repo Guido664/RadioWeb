@@ -832,6 +832,8 @@ export default function App() {
         station={currentStation}
         status={playerStatus}
         errorMessage={playerError}
+        isFavorite={currentStation ? favoriteIds.has(currentStation.id) : false}
+        onToggleFavorite={handleToggleFavorite}
         onStatusChange={handlePlayerStatusChange}
         onStop={handleStopPlayer}
         onSelectGenre={handleSelectGenreAndShowCatalog}

@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Radio,
   Square,
+  Heart,
 } from 'lucide-react';
 import { PlayerStatus, Station } from '../types/station';
 import { StationLogo } from './StationLogo';
@@ -18,6 +19,8 @@ interface AudioPlayerProps {
   station: Station | null;
   status: PlayerStatus;
   errorMessage: string | null;
+  isFavorite: boolean;
+  onToggleFavorite: (stationId: string, e: React.MouseEvent) => void;
   onStatusChange: (status: PlayerStatus, errorMsg?: string | null) => void;
   onStop: () => void;
   onSelectGenre: (genre: string) => void;
@@ -27,6 +30,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   station,
   status,
   errorMessage,
+  isFavorite,
+  onToggleFavorite,
   onStatusChange,
   onStop,
   onSelectGenre,
@@ -405,15 +410,39 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </button>
 
           {station && (
-            <button
-              type="button"
-              onClick={onStop}
-              aria-label="Ferma e chiudi stazione"
-              title="Ferma riproduzione"
-              className="w-9 h-9 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={(e) => onToggleFavorite(station.id, e)}
+                aria-label={
+                  isFavorite
+                    ? `Rimuovi ${station.name} dai preferiti`
+                    : `Aggiungi ${station.name} ai preferiti`
+                }
+                title={
+                  isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'
+                }
+                className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+                  isFavorite
+                    ? 'border-amber-500/50 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
+                    : 'border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white'
+                }`}
+              >
+                <Heart
+                  className={`w-4 h-4 ${isFavorite ? 'fill-amber-400' : ''}`}
+                />
+              </button>
+
+              <button
+                type="button"
+                onClick={onStop}
+                aria-label="Ferma e chiudi stazione"
+                title="Ferma riproduzione"
+                className="w-9 h-9 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            </>
           )}
         </div>
 
