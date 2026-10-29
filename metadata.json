@@ -2,5 +2,7 @@
   "name": "RadioWeb",
   "description": "Applicazione web per ascoltare stazioni radio internazionali in streaming con filtro per genere, ricerca rapida e riproduzione HLS, MP3 e AAC.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -3,7 +3,7 @@ import { CatalogData, RawStationRow, Station } from '../types/station';
 
 const CATALOG_PATHS = [
   '/catalog_stations.csv',
-  '/assets/aistudio/sample_stations_d97e1c15.csv',
+  '/catalog_stations.csv.gz',
 ];
 
 const GENRES_PATHS = [
@@ -91,6 +91,18 @@ export async function clearSavedCsvFromBrowser(): Promise<void> {
   } catch {
     // Ignore errors
   }
+}
+
+/**
+ * Decompresses a GZIP response or Blob using the browser's native DecompressionStream.
+ */
+async function readGzipText(stream: ReadableStream<Uint8Array>): Promise<string> {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('DecompressionStream non supportato dal browser');
+  }
+  const ds = new DecompressionStream('gzip');
+  const decompressedStream = stream.pipeThrough(ds);
+  return await new Response(decompressedStream).text();
 }
 
 /**
@@ -255,15 +267,12 @@ export function parseStationsCsvText(
 }
 
 /**
- * Loads `catalog_stations.csv` at runtime, bypassing stale HTTP caches.
- * If both a server `/catalog_stations.csv` and a browser-saved CSV exist,
- * it automatically uses whichever catalog contains more stations (unless forced).
+ * Loads `catalog_stations.csv` (or `catalog_stations.csv.gz`) at runtime.
  */
 export async function loadInitialCatalog(
   forceBundle = false
 ): Promise<CatalogData & { isCustomSaved?: boolean }> {
   const canonicalGenres = await fetchCanonicalGenres();
-
   const saved = !forceBundle ? await getSavedCsvFromBrowser() : null;
 
   for (const path of CATALOG_PATHS) {
@@ -272,13 +281,17 @@ export async function loadInitialCatalog(
       const response = await fetch(cacheBustUrl, { cache: 'no-store' });
       if (!response.ok) continue;
 
-      const text = await response.text();
+      let text = '';
+      if (path.endsWith('.gz') && response.body) {
+        text = await readGzipText(response.body);
+      } else {
+        text = await response.text();
+      }
+
       if (text.trim().startsWith('<!doctype') || text.trim().startsWith('<html')) {
         continue;
       }
 
-      // If user has a larger custom file saved in IndexedDB (e.g. uploaded manually), use it;
-      // otherwise if the server file was updated with the full catalog, prefer the server file!
       if (saved && saved.csvText && saved.csvText.length > text.length) {
         return parseStationsCsvText(
           saved.csvText,
@@ -305,18 +318,23 @@ export async function loadInitialCatalog(
   }
 
   throw new Error(
-    'Impossibile caricare il file catalog_stations.csv. Assicurati che sia presente nella cartella public/ oppure caricalo manualmente.'
+    'Impossibile caricare il file catalog_stations.csv. Assicurati che sia presente nella cartella public/ oppure clicca su "Carica CSV" in alto a destra.'
   );
 }
 
 /**
- * Parses a user-selected File and persists it in IndexedDB so it survives page reloads.
+ * Parses a user-selected File (.csv or .csv.gz) and persists it in IndexedDB.
  */
 export async function loadCustomCsvFile(
   file: File,
   existingCanonicalGenres: string[] = []
 ): Promise<CatalogData & { isCustomSaved?: boolean }> {
-  const text = await file.text();
+  let text = '';
+  if (file.name.toLowerCase().endsWith('.gz') && file.stream) {
+    text = await readGzipText(file.stream());
+  } else {
+    text = await file.text();
+  }
   await saveCustomCsvToBrowser(text, file.name);
   return parseStationsCsvText(
     text,

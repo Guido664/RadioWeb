@@ -265,7 +265,7 @@ export default function App() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.gz,text/csv,application/gzip"
         onChange={handleFileUpload}
         className="hidden"
       />
@@ -562,6 +562,25 @@ export default function App() {
             {/* SECTION: CATALOG OR FAVORITES */}
             {(activeSection === 'catalog' || activeSection === 'favorites') && (
               <section className="space-y-5">
+                {catalog.totalRowsRead <= 65 && (
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="text-xs sm:text-sm text-amber-200/90">
+                      <strong className="font-semibold text-amber-300">
+                        Catalogo di esempio attivo ({catalog.stations.length} stazioni):
+                      </strong>{' '}
+                      l&apos;editor di file di AI Studio blocca il salvataggio di file di testo da ~25 MB nella barra laterale. Per caricare subito il tuo <code className="font-mono text-white">catalog_stations.csv</code> completo, usa il pulsante qui a fianco.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 self-start sm:self-auto"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Carica catalog_stations.csv (55k)</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Page Header & Summary */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                   <div>
