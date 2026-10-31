@@ -1,0 +1,10 @@
+{
+  "name": "RadioWeb — Streaming Radio Internazionali",
+  "short_name": "RadioWeb",
+  "description": "Ascolta stazioni radio via internet da tutto il mondo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "orientation": "portrait-primary"
+}
