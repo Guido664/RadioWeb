@@ -43,6 +43,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [volume, setVolume] = useState<number>(0.8);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
+  const [nowPlaying, setNowPlaying] = useState<string | null>(null);
+  const [nowPlayingError, setNowPlayingError] = useState<boolean>(false);
+  const [nowPlayingLoading, setNowPlayingLoading] = useState<boolean>(false);
+
   const clearConnectionTimeout = useCallback(() => {
     if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current);
@@ -137,9 +141,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 clearConnectionTimeout();
                 onStatusChange('playing', null);
               })
-              .catch(() => {
+              .catch((err: unknown) => {
                 clearConnectionTimeout();
-                onStatusChange('error', describeStreamError(targetStation));
+                if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                  onStatusChange('paused', null);
+                } else {
+                  onStatusChange('error', describeStreamError(targetStation));
+                }
               });
           });
 
@@ -163,9 +171,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               clearConnectionTimeout();
               onStatusChange('playing', null);
             })
-            .catch(() => {
+            .catch((err: unknown) => {
               clearConnectionTimeout();
-              onStatusChange('error', describeStreamError(targetStation));
+              if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                onStatusChange('paused', null);
+              } else {
+                onStatusChange('error', describeStreamError(targetStation));
+              }
             });
           return;
         } else {
@@ -186,9 +198,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           clearConnectionTimeout();
           onStatusChange('playing', null);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
           clearConnectionTimeout();
-          onStatusChange('error', describeStreamError(targetStation));
+          if (err instanceof DOMException && err.name === 'NotAllowedError') {
+            onStatusChange('paused', null);
+          } else {
+            onStatusChange('error', describeStreamError(targetStation));
+          }
         });
     },
     [
@@ -220,6 +236,70 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audioRef.current.muted = isMuted;
     }
   }, [volume, isMuted]);
+
+  // Poll /api/now-playing every 30s while playing
+  useEffect(() => {
+    const stationId = station?.id;
+    if (status !== 'playing' || !stationId) {
+      setNowPlaying(null);
+      setNowPlayingError(false);
+      setNowPlayingLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setNowPlaying(null);
+    setNowPlayingError(false);
+    setNowPlayingLoading(true);
+
+    const fetchNowPlaying = async () => {
+      try {
+        const res = await fetch(
+          `/api/now-playing?stationIds=${encodeURIComponent(stationId)}`
+        );
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data: unknown = await res.json();
+        if (isCancelled) return;
+
+        if (Array.isArray(data)) {
+          const entry = data.find(
+            (item): item is { stationId?: string; title?: string } =>
+              typeof item === 'object' &&
+              item !== null &&
+              'stationId' in item &&
+              item.stationId === stationId
+          );
+          const cleanTitle =
+            entry && typeof entry.title === 'string' ? entry.title.trim() : '';
+          setNowPlaying(cleanTitle || null);
+        } else {
+          setNowPlaying(null);
+        }
+        setNowPlayingError(false);
+      } catch {
+        if (!isCancelled) {
+          setNowPlayingError(true);
+        }
+      } finally {
+        if (!isCancelled) {
+          setNowPlayingLoading(false);
+        }
+      }
+    };
+
+    fetchNowPlaying();
+    const intervalId = window.setInterval(fetchNowPlaying, 30000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+      setNowPlaying(null);
+      setNowPlayingError(false);
+      setNowPlayingLoading(false);
+    };
+  }, [station?.id, status]);
 
   const handleTogglePlayPause = () => {
     if (!station || !audioRef.current) return;
@@ -291,7 +371,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-4">
         {/* Left: Station Info */}
         {station ? (
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -359,6 +439,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </>
                 )}
               </div>
+
+              {status === 'playing' && (
+                <div className="text-xs truncate mt-0.5">
+                  {nowPlaying ? (
+                    <span className="text-emerald-400" title={nowPlaying}>
+                      In onda: <span className="text-slate-200">{nowPlaying}</span>
+                    </span>
+                  ) : nowPlayingLoading ? (
+                    <span className="text-slate-400">Caricamento brano…</span>
+                  ) : !nowPlayingError ? (
+                    <span className="text-slate-500">Brano non disponibile</span>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         ) : (

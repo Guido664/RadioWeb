@@ -58,6 +58,17 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
+  const selectDefaultStation = useCallback((stations: Station[]) => {
+    const radioLac =
+      stations.find((s) => s.name.trim().toUpperCase() === 'RADIO LAC') ||
+      stations.find((s) => s.id.toLowerCase() === 'radiolacch') ||
+      stations.find((s) => s.name.toUpperCase().includes('RADIO LAC'));
+
+    if (radioLac) {
+      setCurrentStation(radioLac);
+    }
+  }, []);
+
   // Initial load from /catalog_stations.csv
   const fetchDefaultCatalog = useCallback(async () => {
     setIsLoading(true);
@@ -65,6 +76,7 @@ export default function App() {
     try {
       const data = await loadInitialCatalog();
       setCatalog(data);
+      selectDefaultStation(data.stations);
     } catch (err) {
       setLoadError(
         err instanceof Error
@@ -74,7 +86,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectDefaultStation]);
 
   useEffect(() => {
     fetchDefaultCatalog();
@@ -96,6 +108,7 @@ export default function App() {
       const existingGenres = catalog?.genres ?? [];
       const data = await loadCustomCsvFile(file, existingGenres);
       setCatalog(data);
+      selectDefaultStation(data.stations);
       setSelectedGenre('');
       setSearchQuery('');
       setActiveSection('catalog');

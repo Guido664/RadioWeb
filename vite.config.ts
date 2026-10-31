@@ -3,13 +3,15 @@ import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
+import nowPlayingHandler from './api/now-playing';
 
 /**
  * Ensures that if the user places `catalog_stations.csv` in the project root
  * (`./catalog_stations.csv`) instead of `./public/catalog_stations.csv`,
  * it is automatically synced into `public/catalog_stations.csv` for both dev and Vercel builds.
+ * Also mounts `/api/now-playing` during local Vite development so it mirrors Vercel production.
  */
-function syncRootCatalogCsvPlugin(): Plugin {
+function syncRootCatalogAndDevApiPlugin(): Plugin {
   const syncCsv = () => {
     try {
       const rootCsv = path.resolve(__dirname, 'catalog_stations.csv');
@@ -24,7 +26,6 @@ function syncRootCatalogCsvPlugin(): Plugin {
         const publicExists = fs.existsSync(publicCsv);
         const publicStat = publicExists ? fs.statSync(publicCsv) : null;
 
-        // Copy if public/catalog_stations.csv doesn't exist or differs in size/mtime
         if (
           !publicStat ||
           rootStat.size !== publicStat.size ||
@@ -39,19 +40,22 @@ function syncRootCatalogCsvPlugin(): Plugin {
   };
 
   return {
-    name: 'sync-root-catalog-csv',
+    name: 'sync-root-catalog-and-dev-api',
     buildStart() {
       syncCsv();
     },
-    configureServer() {
+    configureServer(server) {
       syncCsv();
+      server.middlewares.use('/api/now-playing', (req, res) => {
+        nowPlayingHandler(req, res);
+      });
     },
   };
 }
 
 export default defineConfig(() => {
   return {
-    plugins: [syncRootCatalogCsvPlugin(), react(), tailwindcss()],
+    plugins: [syncRootCatalogAndDevApiPlugin(), react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
