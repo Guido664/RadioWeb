@@ -5,6 +5,15 @@
   "outputDirectory": "dist",
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "autoplay=*"
+        }
+      ]
+    },
+    {
       "source": "/catalog_stations.csv",
       "headers": [
         {

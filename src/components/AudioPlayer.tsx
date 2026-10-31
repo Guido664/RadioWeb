@@ -36,7 +36,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onStop,
   onSelectGenre,
 }) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
@@ -95,8 +95,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, []);
 
   const handleAutoplayBlocked = useCallback(
-    (audio: HTMLAudioElement) => {
-      // Browser blocked unmuted autoplay: try muted autoplay first, and arm 1-click unlock
+    (audio: HTMLMediaElement) => {
+      // Browser blocked unmuted autoplay: <video muted playsInline> is allowed by Chromium/Safari AutoplayPolicy
       setAwaitingAutoplayUnlock(true);
       audio.muted = true;
       setIsMuted(true);
@@ -107,7 +107,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           onStatusChange('playing', null);
         })
         .catch(() => {
-          // Even muted autoplay was blocked: restore unmuted state and wait for 1st user gesture
           clearConnectionTimeout();
           audio.muted = false;
           setIsMuted(false);
@@ -401,11 +400,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800">
-      {/* Hidden single HTML5 audio instance */}
-      <audio
+      {/* Hidden single HTML5 media instance (<video playsInline> enables Chromium/WebKit muted autoplay policy) */}
+      <video
         ref={audioRef}
+        playsInline
         autoPlay
         preload="auto"
+        className="hidden"
         onPlaying={() => {
           clearConnectionTimeout();
           onStatusChange('playing', null);
@@ -416,7 +417,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
         }}
         onError={() => {
-          // Only handle native audio error if Hls is not managing it and src is actually set
+          // Only handle native media error if Hls is not managing it and src is actually set
           if (!hlsRef.current && station && audioRef.current?.getAttribute('src')) {
             clearConnectionTimeout();
             onStatusChange('error', describeStreamError(station));
