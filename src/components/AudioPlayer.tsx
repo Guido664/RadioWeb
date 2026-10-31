@@ -36,9 +36,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onStop,
   onSelectGenre,
 }) => {
-  const audioRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const currentStationIdRef = useRef<string | null>(null);
 
   const [volume, setVolume] = useState<number>(0.8);
   const [isMuted, setIsMuted] = useState<boolean>(false);
@@ -71,7 +72,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     destroyHls();
     const audio = audioRef.current;
     if (audio) {
-      audio.pause();
+      if (!audio.paused) {
+        audio.pause();
+      }
       if (audio.getAttribute('src')) {
         audio.removeAttribute('src');
         audio.load();
@@ -96,22 +99,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handleAutoplayBlocked = useCallback(
     (audio: HTMLMediaElement) => {
-      // Browser blocked unmuted autoplay: <video muted playsInline> is allowed by Chromium/Safari AutoplayPolicy
+      clearConnectionTimeout();
       setAwaitingAutoplayUnlock(true);
-      audio.muted = true;
-      setIsMuted(true);
-      audio
-        .play()
-        .then(() => {
-          clearConnectionTimeout();
-          onStatusChange('playing', null);
-        })
-        .catch(() => {
-          clearConnectionTimeout();
-          audio.muted = false;
-          setIsMuted(false);
-          onStatusChange('paused', null);
-        });
+      audio.muted = false;
+      setIsMuted(false);
+      onStatusChange('paused', null);
     },
     [clearConnectionTimeout, onStatusChange]
   );
@@ -121,12 +113,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const audio = audioRef.current;
       if (!audio) return;
 
-      // Always stop any previous stream first (single station at a time)
-      stopCurrentAudio();
-      onStatusChange('connecting', null);
-
       const streamUrl = targetStation.streamUrl;
       const lowerUrl = streamUrl.toLowerCase();
+      const isSwitchingStation =
+        currentStationIdRef.current !== null &&
+        currentStationIdRef.current !== targetStation.id;
+
+      // Only stop/reset previous audio if switching from another station
+      if (isSwitchingStation) {
+        stopCurrentAudio();
+      } else {
+        clearConnectionTimeout();
+        destroyHls();
+      }
+
+      currentStationIdRef.current = targetStation.id;
+      onStatusChange('connecting', null);
 
       // Pre-check legacy playlist files (.pls / .m3u, excluding .m3u8)
       if (lowerUrl.endsWith('.pls') || (lowerUrl.endsWith('.m3u') && !lowerUrl.endsWith('.m3u8'))) {
@@ -224,7 +226,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
 
       // Standard direct audio stream (MP3 / AAC / OGG / UNKNOWN)
-      audio.src = streamUrl;
+      if (audio.getAttribute('src') !== streamUrl) {
+        audio.src = streamUrl;
+      }
       audio
         .play()
         .then(() => {
@@ -398,15 +402,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800">
-      {/* Hidden single HTML5 media instance (<video playsInline> enables Chromium/WebKit muted autoplay policy) */}
-      <video
+      {/* Native HTML5 audio element with declarative autoPlay and initial src for Installed PWA autoplay */}
+      <audio
         ref={audioRef}
-        playsInline
+        src="https://radiolac.ice.infomaniak.ch/radiolac-high.mp3"
         autoPlay
         preload="auto"
-        className="hidden"
         onPlaying={() => {
           clearConnectionTimeout();
+          setAwaitingAutoplayUnlock(false);
           onStatusChange('playing', null);
         }}
         onWaiting={() => {
