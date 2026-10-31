@@ -46,6 +46,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [nowPlaying, setNowPlaying] = useState<string | null>(null);
   const [nowPlayingError, setNowPlayingError] = useState<boolean>(false);
   const [nowPlayingLoading, setNowPlayingLoading] = useState<boolean>(false);
+  const [awaitingAutoplayUnlock, setAwaitingAutoplayUnlock] = useState<boolean>(false);
 
   const clearConnectionTimeout = useCallback(() => {
     if (timeoutRef.current !== null) {
@@ -139,11 +140,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               .play()
               .then(() => {
                 clearConnectionTimeout();
+                setAwaitingAutoplayUnlock(false);
                 onStatusChange('playing', null);
               })
               .catch((err: unknown) => {
                 clearConnectionTimeout();
                 if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                  setAwaitingAutoplayUnlock(true);
                   onStatusChange('paused', null);
                 } else {
                   onStatusChange('error', describeStreamError(targetStation));
@@ -169,11 +172,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             .play()
             .then(() => {
               clearConnectionTimeout();
+              setAwaitingAutoplayUnlock(false);
               onStatusChange('playing', null);
             })
             .catch((err: unknown) => {
               clearConnectionTimeout();
               if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                setAwaitingAutoplayUnlock(true);
                 onStatusChange('paused', null);
               } else {
                 onStatusChange('error', describeStreamError(targetStation));
@@ -196,11 +201,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         .play()
         .then(() => {
           clearConnectionTimeout();
+          setAwaitingAutoplayUnlock(false);
           onStatusChange('playing', null);
         })
         .catch((err: unknown) => {
           clearConnectionTimeout();
           if (err instanceof DOMException && err.name === 'NotAllowedError') {
+            setAwaitingAutoplayUnlock(true);
             onStatusChange('paused', null);
           } else {
             onStatusChange('error', describeStreamError(targetStation));
@@ -215,6 +222,36 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       stopCurrentAudio,
     ]
   );
+
+  // If browser blocked initial autoplay (NotAllowedError), unlock and play on first interaction anywhere
+  useEffect(() => {
+    if (!awaitingAutoplayUnlock || !station || status !== 'paused') return;
+
+    const unlockPlayback = () => {
+      setAwaitingAutoplayUnlock(false);
+      if (audioRef.current) {
+        onStatusChange('connecting', null);
+        audioRef.current
+          .play()
+          .then(() => {
+            onStatusChange('playing', null);
+          })
+          .catch(() => {
+            startPlayback(station);
+          });
+      }
+    };
+
+    window.addEventListener('click', unlockPlayback, { once: true });
+    window.addEventListener('keydown', unlockPlayback, { once: true });
+    window.addEventListener('touchstart', unlockPlayback, { once: true });
+
+    return () => {
+      window.removeEventListener('click', unlockPlayback);
+      window.removeEventListener('keydown', unlockPlayback);
+      window.removeEventListener('touchstart', unlockPlayback);
+    };
+  }, [awaitingAutoplayUnlock, station, status, onStatusChange, startPlayback]);
 
   // Trigger playback whenever the selected station changes
   useEffect(() => {
