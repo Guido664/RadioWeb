@@ -18,6 +18,7 @@ import {
 } from './utils/csvLoader';
 import { StationCard } from './components/StationCard';
 import { AudioPlayer } from './components/AudioPlayer';
+import { PWAInstallButton } from './components/PWAInstallButton';
 
 const PAGE_SIZE = 100;
 const FAVORITES_STORAGE_KEY = 'radioweb_favorites_v1';
@@ -324,7 +325,8 @@ export default function App() {
           </a>
 
           {/* Primary action */}
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <PWAInstallButton />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
