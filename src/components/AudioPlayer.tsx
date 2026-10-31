@@ -254,41 +254,39 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     ]
   );
 
-  // If browser blocked initial unmuted autoplay, unlock on first user interaction anywhere on the page
+  // If mobile browser blocked initial unmuted autoplay, unlock on first valid mobile/desktop gesture (touchend / click / keydown)
   useEffect(() => {
     if (!awaitingAutoplayUnlock || !station) return;
 
     const unlockPlayback = () => {
-      setAwaitingAutoplayUnlock(false);
-      setIsMuted(false);
       const audio = audioRef.current;
-      if (audio) {
-        audio.muted = false;
-        audio.volume = volume > 0 ? volume : 0.8;
-        if (audio.paused) {
-          onStatusChange('connecting', null);
-          audio
-            .play()
-            .then(() => {
-              onStatusChange('playing', null);
-            })
-            .catch(() => {
-              startPlayback(station);
-            });
-        }
-      }
+      if (!audio) return;
+
+      audio.muted = false;
+      audio.volume = volume > 0 ? volume : 0.8;
+
+      const playPromise = audio.paused ? audio.play() : Promise.resolve();
+      playPromise
+        .then(() => {
+          setIsMuted(false);
+          setAwaitingAutoplayUnlock(false);
+          onStatusChange('playing', null);
+        })
+        .catch(() => {
+          // Gesture was not a valid activation (e.g. passive scroll): keep listener armed for next tap
+        });
     };
 
-    window.addEventListener('pointerdown', unlockPlayback, { once: true });
-    window.addEventListener('keydown', unlockPlayback, { once: true });
-    window.addEventListener('touchstart', unlockPlayback, { once: true });
+    window.addEventListener('touchend', unlockPlayback, { capture: true, passive: true });
+    window.addEventListener('click', unlockPlayback, { capture: true });
+    window.addEventListener('keydown', unlockPlayback, { capture: true });
 
     return () => {
-      window.removeEventListener('pointerdown', unlockPlayback);
-      window.removeEventListener('keydown', unlockPlayback);
-      window.removeEventListener('touchstart', unlockPlayback);
+      window.removeEventListener('touchend', unlockPlayback, { capture: true });
+      window.removeEventListener('click', unlockPlayback, { capture: true });
+      window.removeEventListener('keydown', unlockPlayback, { capture: true });
     };
-  }, [awaitingAutoplayUnlock, station, volume, onStatusChange, startPlayback]);
+  }, [awaitingAutoplayUnlock, station, volume, onStatusChange]);
 
   // Trigger playback whenever the selected station changes
   useEffect(() => {
@@ -424,32 +422,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
         }}
       />
-
-      {/* Autoplay unlock banner if browser forced muted/paused startup */}
-      {station && awaitingAutoplayUnlock && (
-        <div className="bg-amber-500/15 border-b border-amber-500/40 px-4 py-1.5">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs text-amber-200">
-            <span className="truncate">
-              <strong>{station.name}</strong> è pronta: clicca in qualsiasi punto per attivare l&apos;audio.
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setAwaitingAutoplayUnlock(false);
-                setIsMuted(false);
-                if (audioRef.current) {
-                  audioRef.current.muted = false;
-                  audioRef.current.play().catch(() => startPlayback(station));
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold transition-colors whitespace-nowrap shrink-0"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>Attiva audio</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Error banner if stream fails */}
       {station && status === 'error' && errorMessage && (
