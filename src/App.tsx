@@ -22,6 +22,31 @@ import { AudioPlayer } from './components/AudioPlayer';
 const PAGE_SIZE = 100;
 const FAVORITES_STORAGE_KEY = 'radioweb_favorites_v1';
 
+const DEFAULT_RADIO_LAC: Station = {
+  id: 'radiolacch',
+  name: 'RADIO LAC',
+  city: 'Geneva',
+  country: 'Switzerland',
+  genres: ['Pop'],
+  logo100:
+    'https://station-images-prod.radio-assets.com/100/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+  logo175:
+    'https://station-images-prod.radio-assets.com/175/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+  logo300:
+    'https://station-images-prod.radio-assets.com/300/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+  preferredLogo:
+    'https://station-images-prod.radio-assets.com/175/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+  availableLogos: [
+    'https://station-images-prod.radio-assets.com/175/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+    'https://station-images-prod.radio-assets.com/100/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+    'https://station-images-prod.radio-assets.com/300/radiolacch.png?version=602e4847f1056a8d837fd17f3ebe8bf49a1ef673',
+  ],
+  streamUrl: 'https://radiolac.ice.infomaniak.ch/radiolac-high.mp3',
+  format: 'MP3',
+  isHls: false,
+  searchKey: 'radio lac geneva switzerland pop',
+};
+
 type ActiveSection = 'catalog' | 'genres' | 'favorites' | 'dataset';
 type SortOption = 'name-asc' | 'name-desc' | 'country-asc';
 
@@ -50,9 +75,9 @@ export default function App() {
     return new Set();
   });
 
-  // Audio Player State (Single station at a time)
-  const [currentStation, setCurrentStation] = useState<Station | null>(null);
-  const [playerStatus, setPlayerStatus] = useState<PlayerStatus>('idle');
+  // Audio Player State (Single station at a time, preloaded with RADIO LAC at t=0ms)
+  const [currentStation, setCurrentStation] = useState<Station | null>(DEFAULT_RADIO_LAC);
+  const [playerStatus, setPlayerStatus] = useState<PlayerStatus>('connecting');
   const [playerError, setPlayerError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -65,7 +90,7 @@ export default function App() {
       stations.find((s) => s.name.toUpperCase().includes('RADIO LAC'));
 
     if (radioLac) {
-      setCurrentStation(radioLac);
+      setCurrentStation((prev) => (prev?.id === radioLac.id ? prev : radioLac));
     }
   }, []);
 

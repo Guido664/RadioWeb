@@ -72,8 +72,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
+      if (audio.getAttribute('src')) {
+        audio.removeAttribute('src');
+        audio.load();
+      }
     }
   }, [clearConnectionTimeout, destroyHls]);
 
@@ -91,6 +93,29 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
     return 'Stream attualmente offline, bloccato dal server remoto o formato non supportato.';
   }, []);
+
+  const handleAutoplayBlocked = useCallback(
+    (audio: HTMLAudioElement) => {
+      // Browser blocked unmuted autoplay: try muted autoplay first, and arm 1-click unlock
+      setAwaitingAutoplayUnlock(true);
+      audio.muted = true;
+      setIsMuted(true);
+      audio
+        .play()
+        .then(() => {
+          clearConnectionTimeout();
+          onStatusChange('playing', null);
+        })
+        .catch(() => {
+          // Even muted autoplay was blocked: restore unmuted state and wait for 1st user gesture
+          clearConnectionTimeout();
+          audio.muted = false;
+          setIsMuted(false);
+          onStatusChange('paused', null);
+        });
+    },
+    [clearConnectionTimeout, onStatusChange]
+  );
 
   const startPlayback = useCallback(
     (targetStation: Station) => {
@@ -144,21 +169,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 onStatusChange('playing', null);
               })
               .catch((err: unknown) => {
+                if (err instanceof DOMException && err.name === 'AbortError') {
+                  return;
+                }
                 if (err instanceof DOMException && err.name === 'NotAllowedError') {
-                  // Browser blocked unmuted autoplay: start playing muted immediately and unmute on first click
-                  audio.muted = true;
-                  setIsMuted(true);
-                  setAwaitingAutoplayUnlock(true);
-                  audio
-                    .play()
-                    .then(() => {
-                      clearConnectionTimeout();
-                      onStatusChange('playing', null);
-                    })
-                    .catch(() => {
-                      clearConnectionTimeout();
-                      onStatusChange('paused', null);
-                    });
+                  handleAutoplayBlocked(audio);
                 } else {
                   clearConnectionTimeout();
                   onStatusChange('error', describeStreamError(targetStation));
@@ -188,20 +203,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               onStatusChange('playing', null);
             })
             .catch((err: unknown) => {
+              if (err instanceof DOMException && err.name === 'AbortError') {
+                return;
+              }
               if (err instanceof DOMException && err.name === 'NotAllowedError') {
-                audio.muted = true;
-                setIsMuted(true);
-                setAwaitingAutoplayUnlock(true);
-                audio
-                  .play()
-                  .then(() => {
-                    clearConnectionTimeout();
-                    onStatusChange('playing', null);
-                  })
-                  .catch(() => {
-                    clearConnectionTimeout();
-                    onStatusChange('paused', null);
-                  });
+                handleAutoplayBlocked(audio);
               } else {
                 clearConnectionTimeout();
                 onStatusChange('error', describeStreamError(targetStation));
@@ -228,21 +234,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           onStatusChange('playing', null);
         })
         .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            return;
+          }
           if (err instanceof DOMException && err.name === 'NotAllowedError') {
-            // Browser blocked unmuted autoplay: start playing muted immediately and unmute on first click
-            audio.muted = true;
-            setIsMuted(true);
-            setAwaitingAutoplayUnlock(true);
-            audio
-              .play()
-              .then(() => {
-                clearConnectionTimeout();
-                onStatusChange('playing', null);
-              })
-              .catch(() => {
-                clearConnectionTimeout();
-                onStatusChange('paused', null);
-              });
+            handleAutoplayBlocked(audio);
           } else {
             clearConnectionTimeout();
             onStatusChange('error', describeStreamError(targetStation));
@@ -253,24 +249,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       clearConnectionTimeout,
       describeStreamError,
       destroyHls,
+      handleAutoplayBlocked,
       onStatusChange,
       stopCurrentAudio,
     ]
   );
 
-  // If browser forced muted autoplay on initial load, automatically unmute on first user interaction anywhere
+  // If browser blocked initial unmuted autoplay, unlock on first user interaction anywhere on the page
   useEffect(() => {
     if (!awaitingAutoplayUnlock || !station) return;
 
     const unlockPlayback = () => {
       setAwaitingAutoplayUnlock(false);
       setIsMuted(false);
-      if (audioRef.current) {
-        audioRef.current.muted = false;
-        audioRef.current.volume = volume > 0 ? volume : 0.8;
-        if (audioRef.current.paused) {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.muted = false;
+        audio.volume = volume > 0 ? volume : 0.8;
+        if (audio.paused) {
           onStatusChange('connecting', null);
-          audioRef.current
+          audio
             .play()
             .then(() => {
               onStatusChange('playing', null);
@@ -282,12 +280,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     };
 
-    window.addEventListener('click', unlockPlayback, { once: true });
+    window.addEventListener('pointerdown', unlockPlayback, { once: true });
     window.addEventListener('keydown', unlockPlayback, { once: true });
     window.addEventListener('touchstart', unlockPlayback, { once: true });
 
     return () => {
-      window.removeEventListener('click', unlockPlayback);
+      window.removeEventListener('pointerdown', unlockPlayback);
       window.removeEventListener('keydown', unlockPlayback);
       window.removeEventListener('touchstart', unlockPlayback);
     };
@@ -406,7 +404,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       {/* Hidden single HTML5 audio instance */}
       <audio
         ref={audioRef}
-        preload="none"
+        autoPlay
+        preload="auto"
         onPlaying={() => {
           clearConnectionTimeout();
           onStatusChange('playing', null);
@@ -417,13 +416,39 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }
         }}
         onError={() => {
-          // Only handle native audio error if Hls is not managing it
-          if (!hlsRef.current && station) {
+          // Only handle native audio error if Hls is not managing it and src is actually set
+          if (!hlsRef.current && station && audioRef.current?.getAttribute('src')) {
             clearConnectionTimeout();
             onStatusChange('error', describeStreamError(station));
           }
         }}
       />
+
+      {/* Autoplay unlock banner if browser forced muted/paused startup */}
+      {station && awaitingAutoplayUnlock && (
+        <div className="bg-amber-500/15 border-b border-amber-500/40 px-4 py-1.5">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs text-amber-200">
+            <span className="truncate">
+              <strong>{station.name}</strong> è pronta: clicca in qualsiasi punto per attivare l&apos;audio.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setAwaitingAutoplayUnlock(false);
+                setIsMuted(false);
+                if (audioRef.current) {
+                  audioRef.current.muted = false;
+                  audioRef.current.play().catch(() => startPlayback(station));
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold transition-colors whitespace-nowrap shrink-0"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Attiva audio</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Error banner if stream fails */}
       {station && status === 'error' && errorMessage && (
