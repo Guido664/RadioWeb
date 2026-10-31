@@ -285,55 +285,7 @@ export default function App() {
             RadioWeb
           </a>
 
-          {/* Zone 2: 4 concise single-line text navigation links */}
-          <nav className="flex items-center gap-5 sm:gap-7 text-sm font-medium text-slate-400 overflow-x-auto no-scrollbar">
-            <button
-              type="button"
-              onClick={() => setActiveSection('catalog')}
-              className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
-                activeSection === 'catalog'
-                  ? 'text-white border-amber-500'
-                  : 'border-transparent hover:text-slate-200'
-              }`}
-            >
-              Catalogo
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection('genres')}
-              className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
-                activeSection === 'genres'
-                  ? 'text-white border-amber-500'
-                  : 'border-transparent hover:text-slate-200'
-              }`}
-            >
-              Generi
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection('favorites')}
-              className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
-                activeSection === 'favorites'
-                  ? 'text-white border-amber-500'
-                  : 'border-transparent hover:text-slate-200'
-              }`}
-            >
-              Preferiti ({favoriteIds.size})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection('dataset')}
-              className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
-                activeSection === 'dataset'
-                  ? 'text-white border-amber-500'
-                  : 'border-transparent hover:text-slate-200'
-              }`}
-            >
-               Dati CSV
-            </button>
-          </nav>
-
-          {/* Zone 3: 1 primary action */}
+          {/* Primary action */}
           <div className="flex items-center shrink-0">
             <button
               type="button"
@@ -349,6 +301,53 @@ export default function App() {
 
       {/* Main Content Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
+        <nav className="flex items-center justify-start gap-5 sm:gap-7 text-sm font-medium text-slate-400 overflow-x-auto no-scrollbar border-b border-slate-800/80 mb-6">
+          <button
+            type="button"
+            onClick={() => setActiveSection('catalog')}
+            className={`py-2 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              activeSection === 'catalog'
+                ? 'text-white border-amber-500'
+                : 'border-transparent hover:text-slate-200'
+            }`}
+          >
+            Catalogo
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('genres')}
+            className={`py-2 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              activeSection === 'genres'
+                ? 'text-white border-amber-500'
+                : 'border-transparent hover:text-slate-200'
+            }`}
+          >
+            Generi
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('favorites')}
+            className={`py-2 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              activeSection === 'favorites'
+                ? 'text-white border-amber-500'
+                : 'border-transparent hover:text-slate-200'
+            }`}
+          >
+            Preferiti ({favoriteIds.size})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('dataset')}
+            className={`py-2 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              activeSection === 'dataset'
+                ? 'text-white border-amber-500'
+                : 'border-transparent hover:text-slate-200'
+            }`}
+          >
+            Dati CSV
+          </button>
+        </nav>
+
         {/* Loading State */}
         {isLoading && (
           <div className="py-20 flex flex-col items-center justify-center text-center">
