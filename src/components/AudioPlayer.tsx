@@ -144,11 +144,23 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 onStatusChange('playing', null);
               })
               .catch((err: unknown) => {
-                clearConnectionTimeout();
                 if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                  // Browser blocked unmuted autoplay: start playing muted immediately and unmute on first click
+                  audio.muted = true;
+                  setIsMuted(true);
                   setAwaitingAutoplayUnlock(true);
-                  onStatusChange('paused', null);
+                  audio
+                    .play()
+                    .then(() => {
+                      clearConnectionTimeout();
+                      onStatusChange('playing', null);
+                    })
+                    .catch(() => {
+                      clearConnectionTimeout();
+                      onStatusChange('paused', null);
+                    });
                 } else {
+                  clearConnectionTimeout();
                   onStatusChange('error', describeStreamError(targetStation));
                 }
               });
@@ -176,11 +188,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               onStatusChange('playing', null);
             })
             .catch((err: unknown) => {
-              clearConnectionTimeout();
               if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                audio.muted = true;
+                setIsMuted(true);
                 setAwaitingAutoplayUnlock(true);
-                onStatusChange('paused', null);
+                audio
+                  .play()
+                  .then(() => {
+                    clearConnectionTimeout();
+                    onStatusChange('playing', null);
+                  })
+                  .catch(() => {
+                    clearConnectionTimeout();
+                    onStatusChange('paused', null);
+                  });
               } else {
+                clearConnectionTimeout();
                 onStatusChange('error', describeStreamError(targetStation));
               }
             });
@@ -205,11 +228,23 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           onStatusChange('playing', null);
         })
         .catch((err: unknown) => {
-          clearConnectionTimeout();
           if (err instanceof DOMException && err.name === 'NotAllowedError') {
+            // Browser blocked unmuted autoplay: start playing muted immediately and unmute on first click
+            audio.muted = true;
+            setIsMuted(true);
             setAwaitingAutoplayUnlock(true);
-            onStatusChange('paused', null);
+            audio
+              .play()
+              .then(() => {
+                clearConnectionTimeout();
+                onStatusChange('playing', null);
+              })
+              .catch(() => {
+                clearConnectionTimeout();
+                onStatusChange('paused', null);
+              });
           } else {
+            clearConnectionTimeout();
             onStatusChange('error', describeStreamError(targetStation));
           }
         });
@@ -223,22 +258,27 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     ]
   );
 
-  // If browser blocked initial autoplay (NotAllowedError), unlock and play on first interaction anywhere
+  // If browser forced muted autoplay on initial load, automatically unmute on first user interaction anywhere
   useEffect(() => {
-    if (!awaitingAutoplayUnlock || !station || status !== 'paused') return;
+    if (!awaitingAutoplayUnlock || !station) return;
 
     const unlockPlayback = () => {
       setAwaitingAutoplayUnlock(false);
+      setIsMuted(false);
       if (audioRef.current) {
-        onStatusChange('connecting', null);
-        audioRef.current
-          .play()
-          .then(() => {
-            onStatusChange('playing', null);
-          })
-          .catch(() => {
-            startPlayback(station);
-          });
+        audioRef.current.muted = false;
+        audioRef.current.volume = volume > 0 ? volume : 0.8;
+        if (audioRef.current.paused) {
+          onStatusChange('connecting', null);
+          audioRef.current
+            .play()
+            .then(() => {
+              onStatusChange('playing', null);
+            })
+            .catch(() => {
+              startPlayback(station);
+            });
+        }
       }
     };
 
@@ -251,7 +291,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       window.removeEventListener('keydown', unlockPlayback);
       window.removeEventListener('touchstart', unlockPlayback);
     };
-  }, [awaitingAutoplayUnlock, station, status, onStatusChange, startPlayback]);
+  }, [awaitingAutoplayUnlock, station, volume, onStatusChange, startPlayback]);
 
   // Trigger playback whenever the selected station changes
   useEffect(() => {
